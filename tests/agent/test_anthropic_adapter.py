@@ -1723,6 +1723,35 @@ class TestThinkingBlockSignatureManagement:
         assert len(latest_thinking) == 1
         assert latest_thinking[0]["signature"] == "sig_new"
 
+    def test_third_party_replay_matches_native_anthropic_strategy(self):
+        messages = [
+            {
+                "role": "assistant",
+                "content": "Old answer.",
+                "reasoning_details": [
+                    {"type": "thinking", "thinking": "Old reasoning.", "signature": "sig_old"},
+                    {"type": "redacted_thinking", "data": "old_redacted"},
+                ],
+            },
+            {"role": "user", "content": "Next question"},
+            {
+                "role": "assistant",
+                "content": "Latest answer.",
+                "reasoning_details": [
+                    {"type": "thinking", "thinking": "Latest reasoning.", "signature": "sig_new"},
+                    {"type": "redacted_thinking", "data": "latest_redacted"},
+                ],
+            },
+        ]
+
+        _, native_result = convert_messages_to_anthropic(messages, base_url=None)
+        _, third_party_result = convert_messages_to_anthropic(
+            messages,
+            base_url="https://gateway.example.com/anthropic",
+        )
+
+        assert third_party_result == native_result
+
     def test_cache_control_stripped_from_thinking_blocks(self):
         """cache_control markers are removed from thinking/redacted_thinking blocks."""
         messages = [
