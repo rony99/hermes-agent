@@ -372,7 +372,7 @@ def _uses_claude_code_proxy_shape(base_url: str | None) -> bool:
     """Return True for Anthropic-compatible proxy endpoints.
 
     Hermes uses the Claude Code wire shape for non-native Anthropic Messages
-    endpoints: Bearer auth, session header, and latest signed thinking replay.
+    endpoints: Bearer auth, session header, and signed thinking replay.
     Native Anthropic keeps its existing API-key/OAuth handling.
     """
     return _is_third_party_anthropic_endpoint(base_url)
@@ -1484,8 +1484,8 @@ def convert_messages_to_anthropic(
 
     When *base_url* is provided and points to a third-party Anthropic-compatible
     endpoint, Hermes now uses the same signed-thinking replay strategy as the
-    native Anthropic provider: preserve the latest signed thinking or valid
-    redacted_thinking block, strip older turns, and downgrade unsigned blocks.
+    native Anthropic provider: preserve signed thinking and valid
+    redacted_thinking blocks, and downgrade unsigned blocks.
 
     When *model* is provided and matches the Kimi / Moonshot family (or
     *base_url* is a Kimi / Moonshot host), unsigned thinking blocks
@@ -1737,9 +1737,8 @@ def convert_messages_to_anthropic(
     # causing HTTP 400 "Invalid signature in thinking block".
     #
     # Strategy following clawdbot/OpenClaw:
-    # 1. Strip thinking/redacted_thinking from all assistant messages
-    #    EXCEPT the last one — preserves reasoning continuity on the
-    #    current tool-use chain while avoiding stale signature errors.
+    # 1. Keep signed thinking/redacted_thinking on assistant messages so tool
+    #    continuations can replay the same blocks Claude emitted.
     # 2. Downgrade unsigned thinking blocks (no signature) to text —
     #    Anthropic can't validate them and will reject them.
     # 3. Strip cache_control from thinking/redacted_thinking blocks —
@@ -1756,13 +1755,7 @@ def convert_messages_to_anthropic(
         or _is_deepseek_anthropic_endpoint(base_url)
     )
 
-    last_assistant_idx = None
-    for i in range(len(result) - 1, -1, -1):
-        if result[i].get("role") == "assistant":
-            last_assistant_idx = i
-            break
-
-    for idx, m in enumerate(result):
+    for m in result:
         if m.get("role") != "assistant" or not isinstance(m.get("content"), list):
             continue
 
@@ -1784,17 +1777,9 @@ def convert_messages_to_anthropic(
                 # keep it: the upstream needs it for message-history validation.
                 new_content.append(b)
             m["content"] = new_content or [{"type": "text", "text": "(empty)"}]
-        elif idx != last_assistant_idx:
-            # Strip thinking from non-latest assistant messages only.
-            stripped = [
-                b for b in m["content"]
-                if not (isinstance(b, dict) and b.get("type") in _THINKING_TYPES)
-            ]
-            m["content"] = stripped or [{"type": "text", "text": "(thinking elided)"}]
         else:
-            # Latest assistant on direct Anthropic: keep signed thinking
-            # blocks for reasoning continuity; downgrade unsigned ones to
-            # plain text.
+            # Anthropic-compatible path: keep signed thinking blocks for
+            # reasoning continuity; downgrade unsigned ones to plain text.
             new_content = []
             for b in m["content"]:
                 if not isinstance(b, dict) or b.get("type") not in _THINKING_TYPES:
@@ -1901,8 +1886,7 @@ def build_anthropic_kwargs(
     (for Alibaba/DashScope anthropic-compatible endpoints: qwen3.5-plus).
 
     When *base_url* points to a third-party Anthropic-compatible endpoint,
-    signed thinking replay follows the same latest-turn strategy as the native
-    Anthropic provider.
+    signed thinking replay follows the native Anthropic provider strategy.
 
     When *fast_mode* is True, adds ``extra_body["speed"] = "fast"`` and the
     fast-mode beta header for ~2.5x faster output throughput on Opus 4.6.

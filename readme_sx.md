@@ -29,9 +29,9 @@ diff --git a/hermes_cli/__init__.py b/hermes_cli/__init__.py
 
 - 对非 `anthropic.com` 的 `anthropic_messages` endpoint 使用 `Authorization: Bearer <key>`。
 - 在 Anthropic Messages 请求中加入 `X-Hermes-Code-Session-Id`，用于 gateway 侧聚合同一个 Hermes 会话。
-- 后续 request 会保留并回传最新 assistant turn 的 signed `thinking` 和合法 `redacted_thinking`。
+- 后续 request 会保留并回传历史 assistant turns 中的 signed `thinking` 和合法 `redacted_thinking`，不再只保留最新 assistant turn。
 - response normalize 阶段会把 `redacted_thinking.data` 保存进 `reasoning_details`，确保下一轮 request 有可回传的 redacted block。
-- 旧 assistant turn 的 thinking 仍会移除，避免历史 thinking 无限累积。
+- 旧 assistant turn 的 signed `thinking` / 合法 `redacted_thinking` 会继续保留，用于对齐 Claude Code / OpenClaw 的回传形态。
 - unsigned thinking 仍不会作为 Anthropic signed thinking 回传。
 - 官方 Anthropic endpoint 仍保持原 API key / OAuth 行为。
 - Kimi `/coding` 特例优先级保留，继续使用它需要的 `User-Agent: claude-code/0.1.0`。
@@ -47,7 +47,7 @@ diff --git a/agent/anthropic_adapter.py b/agent/anthropic_adapter.py
 +    """Return True for Anthropic-compatible proxy endpoints.
 +
 +    Hermes uses the Claude Code wire shape for non-native Anthropic Messages
-+    endpoints: Bearer auth, session header, and latest signed thinking replay.
++    endpoints: Bearer auth, session header, and signed thinking replay.
 +    Native Anthropic keeps its existing API-key/OAuth handling.
 +    """
 +    return _is_third_party_anthropic_endpoint(base_url)
@@ -76,7 +76,7 @@ diff --git a/agent/anthropic_adapter.py b/agent/anthropic_adapter.py
 +            kwargs["default_headers"] = {"anthropic-beta": ",".join(common_betas)}
 ```
 
-### 3. 非官方 Anthropic endpoint 保留最新 signed thinking
+### 3. 非官方 Anthropic endpoint 保留历史 signed thinking
 
 ```diff
 diff --git a/agent/anthropic_adapter.py b/agent/anthropic_adapter.py
@@ -96,12 +96,25 @@ diff --git a/agent/anthropic_adapter.py b/agent/anthropic_adapter.py
 -        _is_third_party and not _is_claude_code_proxy_endpoint(base_url)
 -    )
 @@
--        elif _strip_all_thinking or idx != last_assistant_idx:
--            # Third-party endpoint: strip ALL thinking blocks from every
--            # assistant message — signatures are Anthropic-proprietary.
--            # Direct Anthropic: strip from non-latest assistant messages only.
-+        elif idx != last_assistant_idx:
-+            # Strip thinking from non-latest assistant messages only.
+-    last_assistant_idx = None
+-    for i in range(len(result) - 1, -1, -1):
+-        if result[i].get("role") == "assistant":
+-            last_assistant_idx = i
+-            break
+-
+-    for idx, m in enumerate(result):
++    for m in result:
+         if m.get("role") != "assistant" or not isinstance(m.get("content"), list):
+             continue
+@@
+-        elif idx != last_assistant_idx:
+-            # Strip thinking from non-latest assistant messages only.
+-            ...
+-        else:
+-            # Latest assistant on direct Anthropic: keep signed thinking
++        else:
++            # Anthropic-compatible path: keep signed thinking
++            # on every assistant message
 ```
 
 ### 4. Anthropic Messages 请求增加 Hermes session header
@@ -142,7 +155,7 @@ diff --git a/tests/agent/test_anthropic_adapter.py b/tests/agent/test_anthropic_
 +        assert "auth_token" not in kwargs
 +        assert kwargs["default_headers"]["User-Agent"] == "claude-code/0.1.0"
 @@
-+    def test_third_party_preserves_latest_signed_thinking(self):
++    def test_third_party_preserves_signed_thinking(self):
 +        ...
 +        assert any(
 +            block.get("type") == "thinking" and block.get("signature") == "sig_valid"
@@ -150,10 +163,12 @@ diff --git a/tests/agent/test_anthropic_adapter.py b/tests/agent/test_anthropic_
 +        )
 +        assert any(block.get("type") == "redacted_thinking" for block in blocks)
 +
-+    def test_remote_proxy_preserves_latest_signed_thinking(self):
++    def test_remote_proxy_preserves_signed_thinking_across_turns(self):
 +        ...
 +        assert len(latest_thinking) == 1
 +        assert latest_thinking[0]["signature"] == "sig_new"
++        assert len(old_thinking) == 1
++        assert old_thinking[0]["signature"] == "sig_old"
 ```
 
 ```diff
