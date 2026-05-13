@@ -1201,6 +1201,86 @@ class TestBuildApiKwargs:
 
         assert kwargs["extra_headers"]["X-Hermes-Code-Session-Id"] == "test-session-123"
 
+    def test_anthropic_messages_session_header_uses_compression_root(self):
+        class FakeSessionDB:
+            def __init__(self):
+                self.rows = {
+                    "root-session": {
+                        "parent_session_id": None,
+                        "end_reason": "compression",
+                    },
+                    "child-session": {
+                        "parent_session_id": "root-session",
+                        "end_reason": None,
+                    },
+                }
+
+            def get_session(self, session_id):
+                return self.rows.get(session_id)
+
+        agent = object.__new__(AIAgent)
+        agent.api_mode = "anthropic_messages"
+        agent.model = "claude-opus-4-7"
+        agent.tools = []
+        agent.max_tokens = 1024
+        agent.reasoning_config = None
+        agent._is_anthropic_oauth = False
+        agent._ephemeral_max_output_tokens = None
+        agent.context_compressor = None
+        agent._prepare_anthropic_messages_for_api = MagicMock(
+            return_value=[{"role": "user", "content": "hi"}]
+        )
+        agent._anthropic_preserve_dots = MagicMock(return_value=False)
+        agent._anthropic_base_url = "https://gateway.example.com/anthropic"
+        agent.request_overrides = {}
+        agent._oauth_1m_beta_disabled = False
+        agent.session_id = "child-session"
+        agent._session_db = FakeSessionDB()
+
+        kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
+
+        assert kwargs["extra_headers"]["X-Hermes-Code-Session-Id"] == "root-session"
+
+    def test_anthropic_messages_session_header_does_not_fold_branch_child(self):
+        class FakeSessionDB:
+            def __init__(self):
+                self.rows = {
+                    "parent-session": {
+                        "parent_session_id": None,
+                        "end_reason": "branched",
+                    },
+                    "branch-session": {
+                        "parent_session_id": "parent-session",
+                        "end_reason": None,
+                    },
+                }
+
+            def get_session(self, session_id):
+                return self.rows.get(session_id)
+
+        agent = object.__new__(AIAgent)
+        agent.api_mode = "anthropic_messages"
+        agent.model = "claude-opus-4-7"
+        agent.tools = []
+        agent.max_tokens = 1024
+        agent.reasoning_config = None
+        agent._is_anthropic_oauth = False
+        agent._ephemeral_max_output_tokens = None
+        agent.context_compressor = None
+        agent._prepare_anthropic_messages_for_api = MagicMock(
+            return_value=[{"role": "user", "content": "hi"}]
+        )
+        agent._anthropic_preserve_dots = MagicMock(return_value=False)
+        agent._anthropic_base_url = "https://gateway.example.com/anthropic"
+        agent.request_overrides = {}
+        agent._oauth_1m_beta_disabled = False
+        agent.session_id = "branch-session"
+        agent._session_db = FakeSessionDB()
+
+        kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
+
+        assert kwargs["extra_headers"]["X-Hermes-Code-Session-Id"] == "branch-session"
+
     def test_public_moonshot_kimi_k2_5_omits_temperature(self, agent):
         """Kimi models should NOT have client-side temperature overrides.
 

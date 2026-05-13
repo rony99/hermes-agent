@@ -2446,6 +2446,47 @@ class AIAgent:
                 "Session DB creation failed (will retry next turn): %s", e
             )
 
+    def _compression_root_session_id(self) -> str:
+        """Return the analytics session id for request headers.
+
+        Context compression creates a child session, but gateway analytics
+        should keep grouping that continuation under the original user session.
+        Other parent-child relationships, such as branch or subagent runs, keep
+        their own session id.
+        """
+        session_id = getattr(self, "session_id", None) or ""
+        if not session_id:
+            return ""
+
+        db = getattr(self, "_session_db", None)
+        if not db:
+            return session_id
+
+        current = session_id
+        seen = set()
+        for _ in range(32):
+            if not current or current in seen:
+                break
+            seen.add(current)
+            try:
+                current_row = db.get_session(current)
+            except Exception:
+                break
+            if not current_row:
+                break
+            parent_id = current_row.get("parent_session_id")
+            if not parent_id:
+                break
+            try:
+                parent_row = db.get_session(parent_id)
+            except Exception:
+                break
+            if not parent_row or parent_row.get("end_reason") != "compression":
+                break
+            current = parent_id
+
+        return current or session_id
+
     def reset_session_state(self):
         """Reset all session-scoped token counters to 0 for a fresh session.
         
@@ -9231,7 +9272,7 @@ class AIAgent:
                 and _uses_claude_code_proxy_shape(getattr(self, "_anthropic_base_url", None))
             ):
                 extra_headers = dict(api_kwargs.get("extra_headers") or {})
-                extra_headers["X-Hermes-Code-Session-Id"] = self.session_id
+                extra_headers["X-Hermes-Code-Session-Id"] = self._compression_root_session_id()
                 api_kwargs["extra_headers"] = extra_headers
             return api_kwargs
 
