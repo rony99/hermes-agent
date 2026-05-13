@@ -2481,6 +2481,9 @@ class AIAgent:
         Other parent-child relationships, such as branch or subagent runs, keep
         their own session id.
         """
+        if getattr(self, "_memory_write_context", "") == "background_review":
+            return ""
+
         session_id = getattr(self, "session_id", None) or ""
         if not session_id:
             return ""
@@ -9449,7 +9452,9 @@ class AIAgent:
                 and _uses_claude_code_proxy_shape(getattr(self, "_anthropic_base_url", None))
             ):
                 extra_headers = dict(api_kwargs.get("extra_headers") or {})
-                extra_headers["X-Hermes-Code-Session-Id"] = self._compression_root_session_id()
+                header_session_id = self._compression_root_session_id()
+                if header_session_id:
+                    extra_headers["X-Hermes-Code-Session-Id"] = header_session_id
                 api_kwargs["extra_headers"] = extra_headers
             return api_kwargs
 
