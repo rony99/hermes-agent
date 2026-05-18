@@ -2,6 +2,11 @@
 
 Instructions for AI coding assistants and developers working on the hermes-agent codebase.
 
+`Agent_structure/` records the product/technical structure, protocols, APIs,
+schemas, and recurring development pitfalls for this repository. When a task
+changes behavior, packaging, protocol boundaries, or a repeatedly touched area,
+update the corresponding note there as part of the same change.
+
 ## Development Environment
 
 ```bash
