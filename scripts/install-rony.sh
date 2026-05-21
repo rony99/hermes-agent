@@ -249,6 +249,7 @@ package_spec_for_wheel() {
 install_launcher() {
     local link_dir="$1"
     mkdir -p "$link_dir"
+    rm -f "$link_dir/hermes"
     cat > "$link_dir/hermes" <<EOF
 #!/usr/bin/env sh
 : "\${HERMES_HOME:=$HERMES_HOME}"

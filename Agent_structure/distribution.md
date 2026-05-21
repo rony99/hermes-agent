@@ -32,6 +32,10 @@ The generated `hermes` launcher exports:
 - `HERMES_OPTIONAL_SKILLS`
 - `HERMES_BUNDLED_PLUGINS`
 
+Before writing the launcher, the installer removes any existing
+`$HOME/.local/bin/hermes` file or symlink. This avoids following an old symlink
+into a source-checkout venv and overwriting that venv's generated entry point.
+
 This keeps wheel installs functionally close to repo installs without requiring
 users to keep a source checkout.
 
