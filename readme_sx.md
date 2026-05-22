@@ -5,7 +5,7 @@
 本分支把 Hermes CLI 的可见版本号改为：
 
 ```text
-0.13.0_sx
+0.13.0_shixian
 ```
 
 修改位置：
@@ -16,10 +16,10 @@ diff --git a/hermes_cli/__init__.py b/hermes_cli/__init__.py
 +++ b/hermes_cli/__init__.py
 @@
 -__version__ = "0.13.0"
-+__version__ = "0.13.0_sx"
++__version__ = "0.13.0_shixian"
 ```
 
-说明：没有修改 `pyproject.toml` 的包版本，因为 Python packaging 版本号不适合使用 `0.13.0_sx` 这种格式。这里改的是 Hermes 自己展示在 `hermes --version` 和启动 banner 中的版本字符串。
+说明：Hermes 自己展示在 `hermes --version` 和启动 banner 中的版本字符串使用 `0.13.0_shixian`；Python packaging metadata 使用等价的 PEP 440 local version `0.13.0+shixian`，因为 `0.13.0_shixian` 不是合法的 Python 包版本号。
 
 ## 功能修改概述
 

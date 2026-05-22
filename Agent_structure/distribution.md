@@ -45,3 +45,9 @@ The one-liner depends on a public GitHub Release containing a `.whl` asset. If
 the repository has no release or the selected release has no wheel, the
 installer fails explicitly and tells the publisher to build with `uv build` and
 upload `dist/*.whl`.
+
+Shixian-marked releases should stay based on the current `rony99/hermes-agent`
+release branch state, then add the Shixian-specific session/thinking patches on
+top. The CLI display version uses a `_shixian` suffix (for example
+`0.13.0_shixian`), while the wheel metadata must use the PEP 440 local-version
+form (for example `0.13.0+shixian`).
