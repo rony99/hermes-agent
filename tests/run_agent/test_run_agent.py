@@ -1195,6 +1195,7 @@ class TestBuildApiKwargs:
         agent._anthropic_base_url = "https://gateway.example.com/anthropic"
         agent.request_overrides = {}
         agent._oauth_1m_beta_disabled = False
+        agent._use_long_lived_prefix_cache = False
         agent.session_id = "test-session-123"
 
         kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
@@ -1234,6 +1235,7 @@ class TestBuildApiKwargs:
         agent._anthropic_base_url = "https://gateway.example.com/anthropic"
         agent.request_overrides = {}
         agent._oauth_1m_beta_disabled = False
+        agent._use_long_lived_prefix_cache = False
         agent.session_id = "child-session"
         agent._session_db = FakeSessionDB()
 
@@ -1274,6 +1276,7 @@ class TestBuildApiKwargs:
         agent._anthropic_base_url = "https://gateway.example.com/anthropic"
         agent.request_overrides = {}
         agent._oauth_1m_beta_disabled = False
+        agent._use_long_lived_prefix_cache = False
         agent.session_id = "branch-session"
         agent._session_db = FakeSessionDB()
 
@@ -1298,6 +1301,7 @@ class TestBuildApiKwargs:
         agent._anthropic_base_url = "https://gateway.example.com/anthropic"
         agent.request_overrides = {}
         agent._oauth_1m_beta_disabled = False
+        agent._use_long_lived_prefix_cache = False
         agent.session_id = "background-review-session"
         agent._session_db = None
         agent._memory_write_context = "background_review"
