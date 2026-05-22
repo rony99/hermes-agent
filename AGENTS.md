@@ -7,6 +7,23 @@ schemas, and recurring development pitfalls for this repository. When a task
 changes behavior, packaging, protocol boundaries, or a repeatedly touched area,
 update the corresponding note there as part of the same change.
 
+## Shixian Release Branch Discipline
+
+`release/shixian` is the canonical branch for Shixian development and release
+packaging. Completed Shixian changes must be merged or cherry-picked into this
+branch before publishing.
+
+- Build GitHub release wheels from `release/shixian` only.
+- Treat `release/shixian` as the source of truth for user-facing Shixian
+  installs.
+- For small, non-experimental changes, local development and verification may
+  happen directly on `release/shixian`.
+- Use a separate feature branch for large changes, risky experiments, or when
+  the user explicitly asks for isolated development.
+- `main` may track upstream or installer infrastructure, but it is not the
+  canonical source for Shixian-customized release artifacts unless those changes
+  have first been merged into `release/shixian`.
+
 ## Development Environment
 
 ```bash

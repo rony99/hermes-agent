@@ -51,3 +51,22 @@ release branch state, then add the Shixian-specific session/thinking patches on
 top. The CLI display version uses a `_shixian` suffix (for example
 `0.13.0_shixian`), while the wheel metadata must use the PEP 440 local-version
 form (for example `0.13.0+shixian`).
+
+## Canonical Shixian Release Branch
+
+`release/shixian` is the canonical source branch for Shixian releases.
+Completed Shixian behavior must land on this branch before packaging. Release
+wheels and GitHub Releases should be built from this branch only.
+
+Small, non-experimental changes may be developed and tested directly on
+`release/shixian`. Use a separate feature branch for large changes, risky
+experiments, or when the user explicitly asks for isolated development.
+
+The current required Shixian release behaviors are:
+
+- Send the Hermes session id in outbound HTTP headers as
+  `X-Hermes-Code-Session-Id`.
+- Preserve assistant thinking/reasoning history, including signed and redacted
+  Anthropic thinking blocks.
+- Omit the session header for background review or other non-user-main-flow
+  spontaneous agent requests.
